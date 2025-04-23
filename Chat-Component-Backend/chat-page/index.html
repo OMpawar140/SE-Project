@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real-Time Chat</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const messagesDiv = document.getElementById('messages');
+            const toggleButton = document.getElementById('toggle-chat');
+            const form = document.getElementById('message-form');
+            const contentInput = document.getElementById('content');
+            const senderInput = document.getElementById('sender');
+            const anonymousCheckbox = document.getElementById('anonymous');
+
+            // Listen for server-sent events
+            const eventSource = new EventSource('http://localhost:3000/api/chat/stream');
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'chat-toggle') {
+                    alert(`Chat is now ${data.enabled ? 'enabled' : 'disabled'}`);
+                } else if (data.type === 'new-message') {
+                    const message = document.createElement('div');
+                    message.textContent = `${data.message.sender}: ${data.message.content}`;
+                    messagesDiv.appendChild(message);
+                }
+            };
+
+            // Toggle chat
+            toggleButton.addEventListener('click', async () => {
+                const response = await fetch('http://localhost:3000/api/chat/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: toggleButton.checked }),
+                });
+                const result = await response.json();
+                console.log(result.message);
+            });
+
+            // Post a new message
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const response = await fetch('http://localhost:3000/api/chat/message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: contentInput.value,
+                        sender: senderInput.value,
+                        anonymous: anonymousCheckbox.checked,
+                        parentId: null,
+                    }),
+                });
+                const result = await response.json();
+                console.log(result.message);
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Real-Time Chat</h1>
+    <label>
+        <input type="checkbox" id="toggle-chat" />
+        Enable Chat
+    </label>
+    <div id="messages" style="margin-top: 20px; border: 1px solid black; padding: 10px;"></div>
+    <form id="message-form" style="margin-top: 20px;">
+        <input type="text" id="content" placeholder="Message" required />
+        <input type="text" id="sender" placeholder="Your Name" required />
+        <label>
+            <input type="checkbox" id="anonymous" />
+            Send as Anonymous
+        </label>
+        <button type="submit">Send</button>
+    </form>
+</body>
+</html>

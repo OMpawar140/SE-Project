@@ -1,0 +1,134 @@
+<template>
+  <div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="card p-4 shadow-lg" style="background-color: #333; color: #fff; width: 400px;">
+      <h2 class="text-center">Signup</h2>
+      <form v-if="!otpSent" @submit.prevent="handleSignup">
+        <div class="mb-3">
+          <label class="form-label">Name</label>
+          <input type="text" class="form-control" v-model="name" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" v-model="email" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-control" v-model="password" required>
+        </div>
+        <button type="submit" class="btn btn-dark w-100">Signup</button>
+      </form>
+
+      <form v-if="otpSent" @submit.prevent="verifyOtp">
+      <div class="mb-3">
+        <label class="form-label">Enter OTP</label>
+        <input type="text" class="form-control" v-model="otp" required>
+      </div>
+      <button type="submit" class="btn btn-warning w-100">Verify OTP</button>
+
+      <p class="text-center mt-2">
+        Didn't receive the OTP? 
+        <a href="#" @click.prevent="resendOtp" v-if="!resendDisabled" class="text-warning">Resend OTP</a>
+        <span v-else class="text-muted">Resend available in {{ resendTimer }}s</span>
+      </p>
+    </form>
+
+      <p class="text-center mt-3">
+        Already have an account? <router-link to="/login" class="text-warning">Login</router-link>
+      </p>
+    </div>
+  </div>
+</template>
+
+<script>
+import axios from "axios";
+
+export default {
+  data() {
+    return {
+      name: '',
+      email: '',
+      password: '',
+      otp: '',
+      otpSent: false,
+      sessionLink: '' ,
+      resendTimer: 120, 
+      resendDisabled: true
+    };
+  },
+
+  created() {
+    const query = this.$route.query;
+    if (query.email) this.email = query.email;
+    if (query.session_link) this.sessionLink = query.session_link;
+  },
+
+  async mounted() {
+    try {
+      const response = await axios.get('http://localhost:3000/api/protected/dashboard', { withCredentials: true });
+      if (response.data) {
+        this.$router.push(`/session-joined/${this.sessionLink}`);
+      }
+    } catch (error) {
+      console.log('User is not authenticated, stay on login page.');
+    }
+  },
+  methods: {
+    async handleSignup() {
+      try {
+        const response = await axios.post('http://localhost:3000/api/auth/signup', {
+          name: this.name,
+          email: this.email,
+          password: this.password
+        }, { withCredentials: true });
+
+        alert(response.data.message);
+        this.otpSent = true;
+      } catch (error) {
+        alert(error.response.data.message);
+      }
+    },
+    async verifyOtp() {
+      try {
+        const response = await axios.post('http://localhost:3000/api/auth/verify-otp', {
+          email: this.email,
+          otp: this.otp
+        }, { withCredentials: true });
+
+        alert(response.data.message);
+        this.$router.push(`/session-joined/${this.sessionLink}`);
+      } catch (error) {
+        alert(error.response.data.message);
+      }
+    },
+
+    async resendOtp() {
+  try {
+    const response = await axios.post(`http://localhost:3000/api/auth/resend-otp`, {
+      email: this.email
+    }, { withCredentials: true });
+
+    alert(response.data.message);
+    this.startResendTimer();
+  } catch (error) {
+    console.error('Resend OTP Error:', error);
+    alert(error.response?.data?.message || 'An error occurred while resending OTP.');
+  }
+},
+
+
+    startResendTimer() {
+      this.resendDisabled = true;
+      this.resendTimer = 120;
+
+      const interval = setInterval(() => {
+        if (this.resendTimer > 0) {
+          this.resendTimer--;
+        } else {
+          this.resendDisabled = false;
+          clearInterval(interval);
+        }
+      }, 1000);
+    }
+  }
+};
+</script>

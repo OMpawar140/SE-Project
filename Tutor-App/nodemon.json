@@ -1,0 +1,5 @@
+{
+    "watch": ["tutor.js", "scripts.js", "styles.css","index.html"],
+    "ext": "js,json,html,css"
+  }
+  
